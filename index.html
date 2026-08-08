@@ -1,9 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Florr</title>
+
+    <title>Florr Calculator</title>
+
+    <link rel="icon" type="image/png" href="logo.png">
     <link rel="stylesheet" href="Florr.css">
 </head>
 
@@ -47,12 +51,12 @@
 
     </div>
 
-
     <div class="rectangle rectangle-right-top">
 
         <div class="settings">
 
             <div class="setting-row">
+
                 <label for="petalCount">
                     NUMBER OF PETALS YOU ARE CRAFTING
                 </label>
@@ -60,12 +64,15 @@
                 <input
                     type="number"
                     id="petalCount"
-                    min="1"
-                    value="50"
+                    min="5"
+                    max="10000000"
+                    value="5"
                 >
+
             </div>
 
             <div class="setting-row">
+
                 <label for="simulationCount">
                     NUMBER OF SIMULATIONS
                 </label>
@@ -73,9 +80,11 @@
                 <input
                     type="number"
                     id="simulationCount"
-                    min="1"
-                    value="100000"
+                    min="1000"
+                    max="100000"
+                    value="50000"
                 >
+
             </div>
 
             <p class="note">
@@ -85,7 +94,6 @@
         </div>
 
     </div>
-
 
     <div class="rectangle rectangle-right-bottom">
 
@@ -97,8 +105,8 @@
 
     </div>
 
-
     <script src="Florr.js"></script>
 
 </body>
+
 </html>
