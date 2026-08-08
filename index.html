@@ -7,145 +7,82 @@
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Florr Calculator</title>
+    <title>Recommended Sites</title>
 
-    <meta
-        name="description"
-        content="Florr Calculator - Calculate crafting results and probabilities for Florr.io."
-    >
+    <style>
 
-    <meta
-        name="robots"
-        content="index, follow"
-    >
+        body {
+            margin: 0;
+            background-color: #111;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
 
-    <link
-        rel="canonical"
-        href="https://florrcalculator.com/"
-    >
+        .recommended-sites {
+            width: 90%;
+            max-width: 1000px;
+            margin: 50px auto;
+        }
 
-    <link
-        rel="icon"
-        type="image/png"
-        href="logo.png"
-    >
+        .recommended-sites h2 {
+            text-align: center;
+            margin-bottom: 30px;
+        }
 
-    <link
-        rel="stylesheet"
-        href="Florr.css"
-    >
+        .site-card {
+            display: block;
+            padding: 20px;
+            margin-bottom: 15px;
+            background-color: #222;
+            border-radius: 12px;
+            color: white;
+            text-decoration: none;
+            transition: background-color 0.2s, transform 0.2s;
+        }
 
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@type": "WebSite",
-        "name": "Florr Calculator",
-        "url": "https://florrcalculator.com/"
-    }
-    </script>
+        .site-card:hover {
+            background-color: #333;
+            transform: translateY(-2px);
+        }
+
+        .site-name {
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        .site-description {
+            margin-top: 8px;
+            color: #bbb;
+        }
+
+    </style>
 
 </head>
 
 <body>
 
-    <div class="rectangle rectangle-left">
+    <div class="recommended-sites">
 
-        <h2>CHOOSE A RARITY</h2>
+        <h2>Recommended Sites</h2>
 
-        <div class="rarity-grid">
+        <a
+            class="site-card"
+            href="https://rjwr8dsykb-creator.github.io/Florr-Calculator-Ju78/"
+            target="_blank"
+            rel="noopener noreferrer"
+        >
 
-            <div class="rarity rarity-common" data-rarity="64">
-                <span>COMMON</span>
+            <div class="site-name">
+                Florr Calculator
             </div>
 
-            <div class="rarity rarity-unusual" data-rarity="32">
-                <span>UNUSUAL</span>
+            <div class="site-description">
+                Calculate crafting results and probabilities for Florr.io.
             </div>
 
-            <div class="rarity rarity-rare" data-rarity="16">
-                <span>RARE</span>
-            </div>
-
-            <div class="rarity rarity-epic" data-rarity="8">
-                <span>EPIC</span>
-            </div>
-
-            <div class="rarity rarity-legendary" data-rarity="4">
-                <span>LEGENDARY</span>
-            </div>
-
-            <div class="rarity rarity-mythic" data-rarity="2">
-                <span>MYTHIC</span>
-            </div>
-
-            <div class="rarity rarity-ultra" data-rarity="1">
-                <span>ULTRA</span>
-            </div>
-
-        </div>
+        </a>
 
     </div>
-
-
-    <div class="rectangle rectangle-right-top">
-
-        <div class="settings">
-
-            <div class="setting-row">
-
-                <label for="petalCount">
-                    NUMBER OF PETALS YOU ARE CRAFTING
-                </label>
-
-                <input
-                    type="number"
-                    id="petalCount"
-                    min="5"
-                    max="10000000"
-                    value="5"
-                >
-
-            </div>
-
-
-            <div class="setting-row">
-
-                <label for="simulationCount">
-                    NUMBER OF SIMULATIONS
-                </label>
-
-                <input
-                    type="number"
-                    id="simulationCount"
-                    min="1000"
-                    max="100000"
-                    value="50000"
-                >
-
-            </div>
-
-
-            <p class="note">
-                Note: More simulations increase accuracy but may slow down the system.
-            </p>
-
-        </div>
-
-    </div>
-
-
-    <div class="rectangle rectangle-right-bottom">
-
-        <h2>RESULT OF YOUR CRAFT</h2>
-
-        <div id="results">
-            <p>Choose a rarity to begin.</p>
-        </div>
-
-    </div>
-
-
-    <script src="Florr.js"></script>
 
 </body>
 
