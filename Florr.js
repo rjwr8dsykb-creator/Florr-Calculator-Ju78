@@ -1,154 +1,398 @@
-const raritySquares = document.querySelectorAll(".rarity");
-const petalCountInput = document.getElementById("petalCount");
-const simulationCountInput = document.getElementById("simulationCount");
-const results = document.getElementById("results");
+const raritySquares=document.querySelectorAll(".rarity");
+const petalCountInput=document.getElementById("petalCount");
+const desiredSuccessInput=document.getElementById("desiredSuccess");
+const desiredSuccessResult=document.getElementById("desiredSuccessResult");
+const results=document.getElementById("results");
+const chartContainer=document.getElementById("chartContainer");
+const pieChart=document.getElementById("pieChart");
+const pieLabels=document.getElementById("pieLabels");
+const chartLegend=document.getElementById("chartLegend");
+const rarityResult=document.getElementById("rarityResult");
 
-let selectedRarity = null;
-let selectedRarityName = "";
+const MIN_PETALS=5;
+const MAX_PETALS=10000000;
+const BASE_TIME=0.03;
+const TIME_INCREASE_PER_DECADE=0.45;
+const MINIMUM_VISIBLE_PERCENTAGE=3;
+const MAX_CHART_SECTORS=7;
 
-raritySquares.forEach((square) => {
+const chartColors=[
+	"#5BE35A",
+	"#FFD84D",
+	"#5960F0",
+	"#9B3BEF",
+	"#F04444",
+	"#25D9DE",
+	"#FF3F82"
+];
 
-    square.addEventListener("mouseenter", () => {
-        square.style.transform = "scale(1.05)";
-    });
+let selectedRarity=null;
+let selectedRarityName="";
+let currentCalculationID=0;
+let currentDistribution=null;
+let currentSimulationCount=0;
 
-    square.addEventListener("mouseleave", () => {
-        square.style.transform = "scale(1)";
-    });
+function getTargetTime(petals){
+	const decades=Math.log10(petals/MIN_PETALS);
+	return BASE_TIME*Math.pow(1+TIME_INCREASE_PER_DECADE,decades);
+}
 
-    square.addEventListener("click", () => {
+raritySquares.forEach(square=>{
+	square.addEventListener("mouseenter",()=>{
+		square.style.transform="scale(1.05)";
+	});
 
-        raritySquares.forEach((item) => {
-            item.style.boxShadow = "none";
-        });
+	square.addEventListener("mouseleave",()=>{
+		square.style.transform="scale(1)";
+	});
 
-        square.style.boxShadow = "0 0 0 5px white";
+	square.addEventListener("click",()=>{
+		raritySquares.forEach(item=>{
+			item.style.boxShadow="none";
+		});
 
-        selectedRarity = Number(square.dataset.rarity);
+		square.style.boxShadow="0 0 0 5px white";
+		selectedRarity=Number(square.dataset.rarity);
+		selectedRarityName=square.querySelector("span").textContent;
 
-        selectedRarityName =
-            square.querySelector("span").textContent;
-
-        runSimulation();
-    });
-
+		runCalculation();
+	});
 });
 
-petalCountInput.addEventListener("input", runSimulation);
-simulationCountInput.addEventListener("input", runSimulation);
+petalCountInput.addEventListener("input",()=>{
+	const petals=Number(petalCountInput.value);
 
-function runSimulation() {
+	if(!Number.isFinite(petals)||petals<MIN_PETALS){
+		chartContainer.classList.add("hidden");
+		results.innerHTML="<p>Please increase the number of petals to at least 5.</p>";
+		return;
+	}
 
-    if (selectedRarity === null) {
-        return;
-    }
+	if(petals>MAX_PETALS){
+		chartContainer.classList.add("hidden");
+		results.innerHTML="<p>Please decrease the number of petals to a maximum of 10,000,000.</p>";
+		return;
+	}
 
-    const startingPetals = Number(petalCountInput.value);
-    const simulationCount = Number(simulationCountInput.value);
+	if(selectedRarity!==null){
+		runCalculation();
+	}
+});
 
-    if (!Number.isFinite(startingPetals) || startingPetals < 5) {
+desiredSuccessInput.addEventListener("input",updateDesiredSuccessChance);
 
-        results.innerHTML =
-            "<p>Please increase the number of petals to at least 5.</p>";
+function runCalculation(){
+	if(selectedRarity===null){
+		return;
+	}
 
-        return;
-    }
+	const startingPetals=Number(petalCountInput.value);
 
-    if (startingPetals > 10000000) {
+	if(!Number.isFinite(startingPetals)||startingPetals<MIN_PETALS||startingPetals>MAX_PETALS){
+		return;
+	}
 
-        results.innerHTML =
-            "<p>Please decrease the number of petals to a maximum of 10,000,000.</p>";
+	currentCalculationID++;
 
-        return;
-    }
+	const calculationID=currentCalculationID;
+	const targetTime=getTargetTime(startingPetals);
 
-    if (!Number.isFinite(simulationCount) || simulationCount < 1000) {
+	let totalSuccess=0;
+	let totalAttempts=0;
+	let simulationsWithSuccess=0;
+	let simulations=0;
 
-        results.innerHTML =
-            "<p>Please increase the number of simulations to at least 1,000.</p>";
+	const successDistribution=new Map();
+	const startTime=performance.now();
 
-        return;
-    }
+	while(true){
+		if(calculationID!==currentCalculationID){
+			return;
+		}
 
-    if (simulationCount > 100000) {
+		let petals=startingPetals;
+		let success=0;
+		let failures=0;
 
-        results.innerHTML =
-            "<p>Please decrease the number of simulations to a maximum of 100,000.</p>";
+		while(petals>4){
+			const roll=Math.floor(Math.random()*100)+1;
 
-        return;
-    }
+			if(roll<=selectedRarity){
+				success++;
+				petals-=5;
+			}else{
+				failures++;
+				const loss=Math.floor(Math.random()*4)+1;
+				petals-=loss;
+			}
+		}
 
-    let totalSuccess = 0;
-    let simulationsWithSuccess = 0;
-    let totalAttempts = 0;
+		totalSuccess+=success;
+		totalAttempts+=success+failures;
 
-    for (
-        let simulation = 0;
-        simulation < simulationCount;
-        simulation++
-    ) {
+		if(success>0){
+			simulationsWithSuccess++;
+		}
 
-        let petals = startingPetals;
-        let success = 0;
-        let failures = 0;
+		simulations++;
 
-        while (petals > 4) {
+		successDistribution.set(
+			success,
+			(successDistribution.get(success)||0)+1
+		);
 
-            const roll =
-                Math.floor(Math.random() * 100) + 1;
+		const elapsed=(performance.now()-startTime)/1000;
 
-            if (roll <= selectedRarity) {
+		if(elapsed>=targetTime){
+			break;
+		}
+	}
 
-                success++;
-                petals -= 5;
+	currentDistribution=successDistribution;
+	currentSimulationCount=simulations;
 
-            } else {
+	const averageSuccess=totalSuccess/simulations;
+	const chanceOfAtLeastOneSuccess=simulationsWithSuccess*100/simulations;
+	const averageAttempts=totalAttempts/simulations;
 
-                failures++;
+	buildPieChart(successDistribution,simulations);
 
-                const loss =
-                    Math.floor(Math.random() * 4) + 1;
+	results.innerHTML=`
+		<p>Average successes: ${averageSuccess.toFixed(2)}</p>
+		<p>Chance of getting at least 1 success: ${chanceOfAtLeastOneSuccess.toFixed(2)}%</p>
+		<p>Average attempts: ${averageAttempts.toFixed(2)}</p>
+	`;
 
-                petals -= loss;
-            }
-        }
+	updateDesiredSuccessChance();
+}
 
-        totalSuccess += success;
+function updateDesiredSuccessChance(){
+	if(desiredSuccessInput.value===""){
+		desiredSuccessResult.textContent="";
+		return;
+	}
 
-        totalAttempts += success + failures;
+	if(!currentDistribution||currentSimulationCount===0){
+		return;
+	}
 
-        if (success > 0) {
-            simulationsWithSuccess++;
-        }
-    }
+	const desiredSuccess=Number(desiredSuccessInput.value);
 
-    const averageSuccess =
-        totalSuccess / simulationCount;
+	if(!Number.isFinite(desiredSuccess)||desiredSuccess<1||!Number.isInteger(desiredSuccess)){
+		desiredSuccessResult.textContent="Please enter a whole number of SUCCESS.";
+		return;
+	}
 
-    const chanceOfAtLeastOneSuccess =
-        simulationsWithSuccess * 100 / simulationCount;
+	let successfulSimulations=0;
 
-    const averageAttempts =
-        totalAttempts / simulationCount;
+	currentDistribution.forEach((count,successes)=>{
+		if(successes>=desiredSuccess){
+			successfulSimulations+=count;
+		}
+	});
 
-    results.innerHTML = `
-        <p class="selected-rarity">
-            ${selectedRarityName}
-        </p>
+	const chance=successfulSimulations*100/currentSimulationCount;
 
-        <p>
-            Average successes:
-            ${averageSuccess.toFixed(2)}
-        </p>
+	desiredSuccessResult.textContent=
+		`Chance of getting at least ${desiredSuccess} SUCCESS: ${chance.toFixed(2)}%`;
+}
 
-        <p>
-            Chance of getting at least 1 success:
-            ${chanceOfAtLeastOneSuccess.toFixed(2)}%
-        </p>
+function buildPieChart(distribution,totalSimulations){
+	let outcomes=Array.from(distribution.entries())
+		.map(([successes,count])=>({
+			successes,
+			count,
+			percentage:count*100/totalSimulations
+		}));
 
-        <p>
-            Average attempts:
-            ${averageAttempts.toFixed(2)}
-        </p>
-    `;
+	const failure=outcomes.find(outcome=>outcome.successes===0);
+
+	const nonFailure=outcomes.filter(
+		outcome=>outcome.successes!==0
+	);
+
+	nonFailure.sort(
+		(a,b)=>a.successes-b.successes
+	);
+
+	let important=nonFailure.filter(
+		outcome=>outcome.percentage>=MINIMUM_VISIBLE_PERCENTAGE
+	);
+
+	const maxIndividual=failure
+		?MAX_CHART_SECTORS-1
+		:MAX_CHART_SECTORS;
+
+	if(important.length>maxIndividual){
+		const mostImportant=[...important]
+			.sort((a,b)=>b.percentage-a.percentage)
+			.slice(0,maxIndividual);
+
+		const importantSet=new Set(
+			mostImportant.map(outcome=>outcome.successes)
+		);
+
+		important=important.filter(
+			outcome=>importantSet.has(outcome.successes)
+		);
+	}
+
+	const individualSuccesses=new Set(
+		important.map(outcome=>outcome.successes)
+	);
+
+	let otherCount=0;
+
+	nonFailure.forEach(outcome=>{
+		if(!individualSuccesses.has(outcome.successes)){
+			otherCount+=outcome.count;
+		}
+	});
+
+	const finalOutcomes=[];
+
+	if(failure){
+		finalOutcomes.push(failure);
+	}
+
+	important
+		.sort((a,b)=>a.successes-b.successes)
+		.forEach(outcome=>{
+			finalOutcomes.push(outcome);
+		});
+
+	if(otherCount>0){
+		finalOutcomes.push({
+			successes:"other",
+			count:otherCount,
+			percentage:otherCount*100/totalSimulations
+		});
+	}
+
+	if(finalOutcomes.length>MAX_CHART_SECTORS){
+		const keep=finalOutcomes.slice(
+			0,
+			MAX_CHART_SECTORS-1
+		);
+
+		let mergedCount=0;
+
+		finalOutcomes
+			.slice(MAX_CHART_SECTORS-1)
+			.forEach(outcome=>{
+				mergedCount+=outcome.count;
+			});
+
+		keep.push({
+			successes:"other",
+			count:mergedCount,
+			percentage:mergedCount*100/totalSimulations
+		});
+
+		finalOutcomes.length=0;
+
+		keep.forEach(outcome=>{
+			finalOutcomes.push(outcome);
+		});
+	}
+
+	let currentPercentage=0;
+	const gradientParts=[];
+
+	pieLabels.innerHTML="";
+	chartLegend.innerHTML="";
+
+	finalOutcomes.forEach((outcome,index)=>{
+		const start=currentPercentage;
+		const end=currentPercentage+outcome.percentage;
+		const color=chartColors[index];
+
+		gradientParts.push(
+			`${color} ${start}% ${end}%`
+		);
+
+		const middlePercentage=(start+end)/2;
+		const angle=middlePercentage*3.6-90;
+
+		let radius=38;
+
+		if(outcome.percentage<6){
+			radius=42;
+		}
+
+		const radians=angle*Math.PI/180;
+		const x=50+Math.cos(radians)*radius;
+		const y=50+Math.sin(radians)*radius;
+
+		if(outcome.percentage>=3){
+			const label=document.createElement("div");
+
+			label.className="pie-label";
+
+			if(outcome.percentage<6){
+				label.classList.add("small");
+			}
+
+			if(outcome.percentage>=15){
+				label.classList.add("large");
+			}
+
+			label.style.left=`${x}%`;
+			label.style.top=`${y}%`;
+
+			if(outcome.successes===0){
+				label.innerHTML=`
+					<span class="successes">FAILURE</span>
+					<span class="percentage">${outcome.percentage.toFixed(1)}%</span>
+				`;
+			}else if(outcome.successes==="other"){
+				label.innerHTML=`
+					<span class="successes">OTHER</span>
+					<span class="percentage">${outcome.percentage.toFixed(1)}%</span>
+				`;
+			}else{
+				label.innerHTML=`
+					<span class="successes">${outcome.successes} SUCCESS</span>
+					<span class="percentage">${outcome.percentage.toFixed(1)}%</span>
+				`;
+			}
+
+			pieLabels.appendChild(label);
+		}
+
+		const legendItem=document.createElement("div");
+		legendItem.className="legend-item";
+
+		const colorBox=document.createElement("span");
+		colorBox.className="legend-color";
+		colorBox.style.backgroundColor=color;
+
+		const legendText=document.createElement("span");
+
+		let name;
+
+		if(outcome.successes===0){
+			name="FAILURE";
+		}else if(outcome.successes==="other"){
+			name="OTHER";
+		}else{
+			name=`${outcome.successes} SUCCESS`;
+		}
+
+		legendText.textContent=
+			name+" "+outcome.percentage.toFixed(2)+"%";
+
+		legendItem.appendChild(colorBox);
+		legendItem.appendChild(legendText);
+		chartLegend.appendChild(legendItem);
+
+		currentPercentage=end;
+	});
+
+	pieChart.style.background=
+		`conic-gradient(${gradientParts.join(",")})`;
+
+	rarityResult.textContent=selectedRarityName;
+
+	chartContainer.classList.remove("hidden");
 }
