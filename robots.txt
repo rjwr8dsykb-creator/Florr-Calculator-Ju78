@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://rjwr8dsykb-creator.github.io/Florr-Calculator-Ju78/sitemap.xml
