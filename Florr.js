@@ -1,28 +1,28 @@
-const raritySquares=document.querySelectorAll(".rarity");
-const petalCountInput=document.getElementById("petalCount");
-const desiredSuccessInput=document.getElementById("desiredSuccess");
-const desiredSuccessResult=document.getElementById("desiredSuccessResult");
-const results=document.getElementById("results");
-const chartContainer=document.getElementById("chartContainer");
-const pieChart=document.getElementById("pieChart");
-const pieLabels=document.getElementById("pieLabels");
-const chartLegend=document.getElementById("chartLegend");
-const rarityResult=document.getElementById("rarityResult");
+const raritySquares = document.querySelectorAll(".rarity");
+const petalCountInput = document.getElementById("petalCount");
+const desiredSuccessInput = document.getElementById("desiredSuccess");
+const desiredSuccessResult = document.getElementById("desiredSuccessResult");
+const results = document.getElementById("results");
+const chartContainer = document.getElementById("chartContainer");
+const pieChart = document.getElementById("pieChart");
+const pieLabels = document.getElementById("pieLabels");
+const chartLegend = document.getElementById("chartLegend");
+const rarityResult = document.getElementById("rarityResult");
 
-const MIN_PETALS=5;
-const MAX_PETALS=10000000;
+const MIN_PETALS = 5;
+const MAX_PETALS = 10000000;
 
-const MINIMUM_VISIBLE_PERCENTAGE=3;
-const MAX_CHART_SECTORS=8;
+const MINIMUM_VISIBLE_PERCENTAGE = 3;
+const MAX_CHART_SECTORS = 8;
 
-const STABILITY_PERCENTAGE=0.001;
-const STABILITY_TIME=3000;
+const STABILITY_PERCENTAGE = 0.001;
+const STABILITY_TIME = 3000;
 
-const BATCH_TIME=5;
-const UI_UPDATE_INTERVAL=50;
-const TRANSITION_TIME=100;
+const BATCH_TIME = 5;
+const UI_UPDATE_INTERVAL = 50;
+const TRANSITION_TIME = 100;
 
-const chartColors=[
+const chartColors = [
 	"#5BE35A",
 	"#FFD84D",
 	"#5960F0",
@@ -33,311 +33,201 @@ const chartColors=[
 	"#2BFFA3"
 ];
 
-let selectedRarity=null;
-let selectedRarityName="";
+let selectedRarity = null;
+let selectedRarityName = "";
 
-let currentCalculationID=0;
-let currentDistribution=null;
-let currentSimulationCount=0;
-let simulationTimer=null;
+let currentCalculationID = 0;
+let currentDistribution = null;
+let currentSimulationCount = 0;
+let simulationTimer = null;
 
-let stabilizedResult=null;
-let stabilizedPetalCount=null;
-let stabilizedRarity=null;
+let stabilizedResult = null;
+let stabilizedPetalCount = null;
+let stabilizedRarity = null;
 
-function setRarityTransform(square,scale){
+raritySquares.forEach(square => {
 
-	if(
-		square.classList.contains("rarity-ultra") ||
-		square.classList.contains("rarity-super")
-	){
+	square.addEventListener("click", () => {
 
-		square.style.transform=
-			`translateX(85px) scale(${scale})`;
-
-	}else{
-
-		square.style.transform=
-			`scale(${scale})`;
-	}
-}
-
-raritySquares.forEach(square=>{
-
-	square.addEventListener("mouseenter",()=>{
-
-		setRarityTransform(
-			square,
-			1.05
-		);
-	});
-
-	square.addEventListener("mouseleave",()=>{
-
-		setRarityTransform(
-			square,
-			1
-		);
-	});
-
-	square.addEventListener("click",()=>{
-
-		raritySquares.forEach(item=>{
-
-			item.style.boxShadow="none";
+		raritySquares.forEach(item => {
+			item.style.boxShadow = "none";
 		});
 
-		square.style.boxShadow=
-			"0 0 0 5px white";
+		square.style.boxShadow = "0 0 0 5px white";
 
-		selectedRarity=
-			Number(
-				square.dataset.rarity
-			);
+		selectedRarity = Number(square.dataset.rarity);
 
-		selectedRarityName=
-			square.querySelector(
-				"span"
-			).textContent;
+		selectedRarityName =
+			square.querySelector("span").textContent;
 
 		runCalculation();
 	});
 });
 
-petalCountInput.addEventListener(
-	"input",
-	()=>{
+petalCountInput.addEventListener("input", () => {
 
-		const petals=
-			Number(
-				petalCountInput.value
-			);
+	const petals = Number(petalCountInput.value);
 
-		if(
-			!Number.isFinite(petals) ||
-			petals<MIN_PETALS
-		){
+	if (!Number.isFinite(petals) || petals < MIN_PETALS) {
 
-			stopSimulation();
+		stopSimulation();
 
-			chartContainer.classList.add(
-				"hidden"
-			);
+		chartContainer.classList.add("hidden");
 
-			results.innerHTML=
-				"<p>Please increase the number of petals to at least 5.</p>";
+		results.innerHTML =
+			"<p>Please increase the number of petals to at least 5.</p>";
 
-			return;
-		}
-
-		if(
-			petals>MAX_PETALS
-		){
-
-			stopSimulation();
-
-			chartContainer.classList.add(
-				"hidden"
-			);
-
-			results.innerHTML=
-				"<p>Please decrease the number of petals to a maximum of 10,000,000.</p>";
-
-			return;
-		}
-
-		if(
-			selectedRarity!==null
-		){
-
-			runCalculation();
-		}
+		return;
 	}
-);
+
+	if (petals > MAX_PETALS) {
+
+		stopSimulation();
+
+		chartContainer.classList.add("hidden");
+
+		results.innerHTML =
+			"<p>Please decrease the number of petals to a maximum of 10,000,000.</p>";
+
+		return;
+	}
+
+	if (selectedRarity !== null) {
+		runCalculation();
+	}
+});
 
 desiredSuccessInput.addEventListener(
 	"input",
 	updateDesiredSuccessChance
 );
 
-function stopSimulation(){
+function stopSimulation() {
 
-	if(
-		simulationTimer!==null
-	){
+	if (simulationTimer !== null) {
 
-		clearTimeout(
-			simulationTimer
-		);
+		clearTimeout(simulationTimer);
 
-		simulationTimer=null;
+		simulationTimer = null;
 	}
 }
 
-function runCalculation(){
+function runCalculation() {
 
 	stopSimulation();
 
-	if(
-		selectedRarity===null
-	){
+	if (selectedRarity === null) {
 		return;
 	}
 
-	const startingPetals=
-		Number(
-			petalCountInput.value
-		);
+	const startingPetals = Number(petalCountInput.value);
 
-	if(
+	if (
 		!Number.isFinite(startingPetals) ||
-		startingPetals<MIN_PETALS ||
-		startingPetals>MAX_PETALS
-	){
+		startingPetals < MIN_PETALS ||
+		startingPetals > MAX_PETALS
+	) {
 		return;
 	}
 
-	const oldStabilizedResult=
-		stabilizedResult;
+	const oldStabilizedResult = stabilizedResult;
+	const oldPetalCount = stabilizedPetalCount;
+	const oldRarity = stabilizedRarity;
 
-	const oldPetalCount=
-		stabilizedPetalCount;
+	const isSameRarity =
+		oldRarity === selectedRarity;
 
-	const oldRarity=
-		stabilizedRarity;
-
-	const isSameRarity=
-		oldRarity===
-		selectedRarity;
-
-	const isGoingUp=
+	const isGoingUp =
 		isSameRarity &&
-		oldPetalCount!==null &&
-		startingPetals>
-		oldPetalCount;
+		oldPetalCount !== null &&
+		startingPetals > oldPetalCount;
 
-	const isGoingDown=
+	const isGoingDown =
 		isSameRarity &&
-		oldPetalCount!==null &&
-		startingPetals<
-		oldPetalCount;
+		oldPetalCount !== null &&
+		startingPetals < oldPetalCount;
 
-	const usePreviousResult=
+	const usePreviousResult =
 		!!oldStabilizedResult &&
 		isSameRarity &&
-		(
-			isGoingUp ||
-			isGoingDown
-		);
+		(isGoingUp || isGoingDown);
 
 	currentCalculationID++;
 
-	const calculationID=
-		currentCalculationID;
+	const calculationID = currentCalculationID;
 
-	let totalSuccess=0;
-	let totalAttempts=0;
-	let simulationsWithSuccess=0;
-	let simulations=0;
+	let totalSuccess = 0;
+	let totalAttempts = 0;
+	let simulationsWithSuccess = 0;
+	let simulations = 0;
 
-	const successDistribution=
-		new Map();
+	const successDistribution = new Map();
 
-	const transitionStart=
-		performance.now();
+	const transitionStart = performance.now();
 
-	let lastChance=null;
+	let lastChance = null;
+	let stableSince = performance.now();
+	let lastUIUpdate = 0;
 
-	let stableSince=
-		performance.now();
+	chartContainer.classList.remove("hidden");
 
-	let lastUIUpdate=0;
+	if (usePreviousResult) {
 
-	chartContainer.classList.remove(
-		"hidden"
-	);
-
-	if(
-		usePreviousResult
-	){
-
-		results.innerHTML=`
+		results.innerHTML = `
 			<p>Average successes: ${oldStabilizedResult.averageSuccess.toFixed(2)}</p>
 			<p>Chance of getting at least 1 success: ${oldStabilizedResult.chance.toFixed(2)}%</p>
 			<p>Average attempts: ${oldStabilizedResult.averageAttempts.toFixed(2)}</p>
 			<p>Updating...</p>
 		`;
 
-	}else{
+	} else {
 
-		results.innerHTML="";
+		results.innerHTML = "";
 	}
 
-	function runBatch(){
+	function runBatch() {
 
-		if(
-			calculationID!==
-			currentCalculationID
-		){
+		if (calculationID !== currentCalculationID) {
 			return;
 		}
 
-		const batchStart=
-			performance.now();
+		const batchStart = performance.now();
 
-		while(
-			performance.now()-
-			batchStart<
-			BATCH_TIME
-		){
+		while (
+			performance.now() - batchStart < BATCH_TIME
+		) {
 
-			let petals=
-				startingPetals;
+			let petals = startingPetals;
 
-			let success=0;
-			let failures=0;
+			let success = 0;
+			let failures = 0;
 
-			while(
-				petals>4
-			){
+			while (petals > 4) {
 
-				const roll=
-					Math.random()*
-					100;
+				const roll = Math.random() * 100;
 
-				if(
-					roll<
-					selectedRarity
-				){
+				if (roll < selectedRarity) {
 
 					success++;
+					petals -= 5;
 
-					petals-=5;
-
-				}else{
+				} else {
 
 					failures++;
 
-					const loss=
-						Math.floor(
-							Math.random()*4
-						)+1;
+					const loss =
+						Math.floor(Math.random() * 4) + 1;
 
-					petals-=loss;
+					petals -= loss;
 				}
 			}
 
-			totalSuccess+=
-				success;
+			totalSuccess += success;
 
-			totalAttempts+=
-				success+
-				failures;
+			totalAttempts +=
+				success + failures;
 
-			if(
-				success>0
-			){
-
+			if (success > 0) {
 				simulationsWithSuccess++;
 			}
 
@@ -345,126 +235,90 @@ function runCalculation(){
 
 			successDistribution.set(
 				success,
-				(
-					successDistribution.get(
-						success
-					)||0
-				)+1
+				(successDistribution.get(success) || 0) + 1
 			);
 		}
 
-		if(
-			calculationID!==
-			currentCalculationID
-		){
+		if (calculationID !== currentCalculationID) {
 			return;
 		}
 
-		const now=
-			performance.now();
+		const now = performance.now();
 
-		const averageSuccess=
-			totalSuccess/
-			simulations;
+		const averageSuccess =
+			totalSuccess / simulations;
 
-		const chance=
-			simulationsWithSuccess*
-			100/
-			simulations;
+		const chance =
+			simulationsWithSuccess * 100 / simulations;
 
-		const averageAttempts=
-			totalAttempts/
-			simulations;
+		const averageAttempts =
+			totalAttempts / simulations;
 
-		currentDistribution=
-			successDistribution;
+		currentDistribution = successDistribution;
+		currentSimulationCount = simulations;
 
-		currentSimulationCount=
-			simulations;
+		if (lastChance === null) {
 
-		if(
-			lastChance===null
-		){
+			lastChance = chance;
+			stableSince = now;
 
-			lastChance=
-				chance;
+		} else {
 
-			stableSince=
-				now;
+			const difference =
+				Math.abs(chance - lastChance);
 
-		}else{
+			if (difference >= STABILITY_PERCENTAGE) {
 
-			const difference=
-				Math.abs(
-					chance-
-					lastChance
-				);
-
-			if(
-				difference>=
-				STABILITY_PERCENTAGE
-			){
-
-				lastChance=
-					chance;
-
-				stableSince=
-					now;
+				lastChance = chance;
+				stableSince = now;
 			}
 		}
 
-		const transitionElapsed=
-			now-
-			transitionStart;
+		const transitionElapsed =
+			now - transitionStart;
 
-		const transitionProgress=
+		const transitionProgress =
 			Math.min(
 				1,
-				transitionElapsed/
-				TRANSITION_TIME
+				transitionElapsed / TRANSITION_TIME
 			);
 
-		let displayChance=
-			chance;
+		let displayChance = chance;
 
-		if(
+		if (
 			usePreviousResult &&
-			transitionProgress<1
-		){
+			transitionProgress < 1
+		) {
 
-			if(
+			if (
 				isGoingUp &&
-				chance<
-				oldStabilizedResult.chance
-			){
+				chance < oldStabilizedResult.chance
+			) {
 
-				displayChance=
+				displayChance =
 					oldStabilizedResult.chance;
 			}
 
-			if(
+			if (
 				isGoingDown &&
-				chance>
-				oldStabilizedResult.chance
-			){
+				chance > oldStabilizedResult.chance
+			) {
 
-				displayChance=
+				displayChance =
 					oldStabilizedResult.chance;
 			}
 		}
 
-		if(
-			now-
-			lastUIUpdate>=
-			UI_UPDATE_INTERVAL
-		){
+		if (
+			now - lastUIUpdate >= UI_UPDATE_INTERVAL
+		) {
 
 			buildPieChart(
 				successDistribution,
 				simulations
 			);
 
-			results.innerHTML=`
+			results.innerHTML = `
 				<p>Average successes: ${averageSuccess.toFixed(2)}</p>
 				<p>Chance of getting at least 1 success: ${displayChance.toFixed(2)}%</p>
 				<p>Average attempts: ${averageAttempts.toFixed(2)}</p>
@@ -472,34 +326,28 @@ function runCalculation(){
 
 			updateDesiredSuccessChance();
 
-			lastUIUpdate=
-				now;
+			lastUIUpdate = now;
 		}
 
-		if(
-			now-
-			stableSince>=
-			STABILITY_TIME
-		){
+		if (
+			now - stableSince >= STABILITY_TIME
+		) {
 
-			stabilizedResult={
+			stabilizedResult = {
 				averageSuccess,
 				chance,
 				averageAttempts
 			};
 
-			stabilizedPetalCount=
-				startingPetals;
-
-			stabilizedRarity=
-				selectedRarity;
+			stabilizedPetalCount = startingPetals;
+			stabilizedRarity = selectedRarity;
 
 			buildPieChart(
 				successDistribution,
 				simulations
 			);
 
-			results.innerHTML=`
+			results.innerHTML = `
 				<p>Average successes: ${averageSuccess.toFixed(2)}</p>
 				<p>Chance of getting at least 1 success: ${chance.toFixed(2)}%</p>
 				<p>Average attempts: ${averageAttempts.toFixed(2)}</p>
@@ -507,410 +355,310 @@ function runCalculation(){
 
 			updateDesiredSuccessChance();
 
-			simulationTimer=null;
+			simulationTimer = null;
 
 			return;
 		}
 
-		simulationTimer=
-			setTimeout(
-				runBatch,
-				0
-			);
+		simulationTimer =
+			setTimeout(runBatch, 0);
 	}
 
 	runBatch();
 }
 
-function updateDesiredSuccessChance(){
+function updateDesiredSuccessChance() {
 
-	if(
-		desiredSuccessInput.value===
-		""
-	){
+	if (desiredSuccessInput.value === "") {
 
-		desiredSuccessResult.textContent=
-			"";
+		desiredSuccessResult.textContent = "";
 
 		return;
 	}
 
-	if(
-		!currentDistribution||
-		currentSimulationCount===0
-	){
+	if (
+		!currentDistribution ||
+		currentSimulationCount === 0
+	) {
 		return;
 	}
 
-	const desiredSuccess=
-		Number(
-			desiredSuccessInput.value
-		);
+	const desiredSuccess =
+		Number(desiredSuccessInput.value);
 
-	if(
+	if (
 		!Number.isFinite(desiredSuccess) ||
-		desiredSuccess<1 ||
+		desiredSuccess < 1 ||
 		!Number.isInteger(desiredSuccess)
-	){
+	) {
 
-		desiredSuccessResult.textContent=
+		desiredSuccessResult.textContent =
 			"Please enter a whole number of SUCCESS.";
 
 		return;
 	}
 
-	let successfulSimulations=0;
+	let successfulSimulations = 0;
 
 	currentDistribution.forEach(
-		(count,successes)=>{
+		(count, successes) => {
 
-			if(
-				successes>=
-				desiredSuccess
-			){
-
-				successfulSimulations+=
-					count;
+			if (successes >= desiredSuccess) {
+				successfulSimulations += count;
 			}
 		}
 	);
 
-	const chance=
-		successfulSimulations*
-		100/
+	const chance =
+		successfulSimulations *
+		100 /
 		currentSimulationCount;
 
-	desiredSuccessResult.textContent=
+	desiredSuccessResult.textContent =
 		`Chance of getting at least ${desiredSuccess} SUCCESS: ${chance.toFixed(2)}%`;
 }
 
 function buildPieChart(
 	distribution,
 	totalSimulations
-){
+) {
 
-	let outcomes=
-		Array.from(
-			distribution.entries()
-		)
-		.map(
-			([successes,count])=>({
-
+	let outcomes =
+		Array.from(distribution.entries())
+			.map(([successes, count]) => ({
 				successes,
 				count,
-
 				percentage:
-					count*
-					100/
-					totalSimulations
-			})
-		);
+					count * 100 / totalSimulations
+			}));
 
-	const failure=
+	const failure =
 		outcomes.find(
-			outcome=>
-				outcome.successes===0
+			outcome => outcome.successes === 0
 		);
 
-	const nonFailure=
+	const nonFailure =
 		outcomes.filter(
-			outcome=>
-				outcome.successes!==0
+			outcome => outcome.successes !== 0
 		);
 
 	nonFailure.sort(
-		(a,b)=>
-			a.successes-
-			b.successes
+		(a, b) => a.successes - b.successes
 	);
 
-	let important=
+	let important =
 		nonFailure.filter(
-			outcome=>
-				outcome.percentage>=
+			outcome =>
+				outcome.percentage >=
 				MINIMUM_VISIBLE_PERCENTAGE
 		);
 
-	const maxIndividual=
+	const maxIndividual =
 		failure
-			?MAX_CHART_SECTORS-1
-			:MAX_CHART_SECTORS;
+			? MAX_CHART_SECTORS - 1
+			: MAX_CHART_SECTORS;
 
-	if(
-		important.length>
-		maxIndividual
-	){
+	if (important.length > maxIndividual) {
 
-		const mostImportant=
+		const mostImportant =
 			[...important]
-			.sort(
-				(a,b)=>
-					b.percentage-
-					a.percentage
-			)
-			.slice(
-				0,
-				maxIndividual
-			);
+				.sort(
+					(a, b) =>
+						b.percentage -
+						a.percentage
+				)
+				.slice(0, maxIndividual);
 
-		const importantSet=
+		const importantSet =
 			new Set(
 				mostImportant.map(
-					outcome=>
-						outcome.successes
+					outcome => outcome.successes
 				)
 			);
 
-		important=
+		important =
 			important.filter(
-				outcome=>
+				outcome =>
 					importantSet.has(
 						outcome.successes
 					)
 			);
 	}
 
-	const individualSuccesses=
+	const individualSuccesses =
 		new Set(
 			important.map(
-				outcome=>
-					outcome.successes
+				outcome => outcome.successes
 			)
 		);
 
-	let otherCount=0;
+	let otherCount = 0;
 
-	nonFailure.forEach(
-		outcome=>{
+	nonFailure.forEach(outcome => {
 
-			if(
-				!individualSuccesses.has(
-					outcome.successes
-				)
-			){
+		if (
+			!individualSuccesses.has(
+				outcome.successes
+			)
+		) {
 
-				otherCount+=
-					outcome.count;
-			}
+			otherCount += outcome.count;
 		}
-	);
+	});
 
-	const finalOutcomes=[];
+	const finalOutcomes = [];
 
-	if(
-		failure
-	){
-
-		finalOutcomes.push(
-			failure
-		);
+	if (failure) {
+		finalOutcomes.push(failure);
 	}
 
 	important
 		.sort(
-			(a,b)=>
-				a.successes-
+			(a, b) =>
+				a.successes -
 				b.successes
 		)
-		.forEach(
-			outcome=>{
+		.forEach(outcome => {
+			finalOutcomes.push(outcome);
+		});
 
-				finalOutcomes.push(
-					outcome
-				);
-			}
-		);
-
-	if(
-		otherCount>0
-	){
+	if (otherCount > 0) {
 
 		finalOutcomes.push({
-
-			successes:"other",
-
-			count:
-				otherCount,
-
+			successes: "other",
+			count: otherCount,
 			percentage:
-				otherCount*
-				100/
+				otherCount *
+				100 /
 				totalSimulations
 		});
 	}
 
-	if(
-		finalOutcomes.length>
+	if (
+		finalOutcomes.length >
 		MAX_CHART_SECTORS
-	){
+	) {
 
-		const keep=
+		const keep =
 			finalOutcomes.slice(
 				0,
-				MAX_CHART_SECTORS-1
+				MAX_CHART_SECTORS - 1
 			);
 
-		let mergedCount=0;
+		let mergedCount = 0;
 
 		finalOutcomes
-			.slice(
-				MAX_CHART_SECTORS-1
-			)
-			.forEach(
-				outcome=>{
-
-					mergedCount+=
-						outcome.count;
-				}
-			);
+			.slice(MAX_CHART_SECTORS - 1)
+			.forEach(outcome => {
+				mergedCount += outcome.count;
+			});
 
 		keep.push({
-
-			successes:"other",
-
-			count:
-				mergedCount,
-
+			successes: "other",
+			count: mergedCount,
 			percentage:
-				mergedCount*
-				100/
+				mergedCount *
+				100 /
 				totalSimulations
 		});
 
-		finalOutcomes.length=0;
+		finalOutcomes.length = 0;
 
-		keep.forEach(
-			outcome=>{
-
-				finalOutcomes.push(
-					outcome
-				);
-			}
-		);
+		keep.forEach(outcome => {
+			finalOutcomes.push(outcome);
+		});
 	}
 
-	let currentPercentage=0;
+	let currentPercentage = 0;
 
-	const gradientParts=[];
+	const gradientParts = [];
 
-	pieLabels.innerHTML="";
-	chartLegend.innerHTML="";
+	pieLabels.innerHTML = "";
+	chartLegend.innerHTML = "";
 
 	finalOutcomes.forEach(
-		(outcome,index)=>{
+		(outcome, index) => {
 
-			const start=
+			const start =
 				currentPercentage;
 
-			const end=
-				currentPercentage+
+			const end =
+				currentPercentage +
 				outcome.percentage;
 
-			const color=
+			const color =
 				chartColors[
-					index%
-					chartColors.length
+					index % chartColors.length
 				];
 
 			gradientParts.push(
 				`${color} ${start}% ${end}%`
 			);
 
-			const middlePercentage=
-				(start+end)/
-				2;
+			const middlePercentage =
+				(start + end) / 2;
 
-			const angle=
-				middlePercentage*
-				3.6-
-				90;
+			const angle =
+				middlePercentage * 3.6 - 90;
 
-			let radius=38;
+			let radius = 38;
 
-			if(
-				outcome.percentage<6
-			){
-
-				radius=42;
+			if (outcome.percentage < 6) {
+				radius = 42;
 			}
 
-			const radians=
-				angle*
-				Math.PI/
-				180;
+			const radians =
+				angle * Math.PI / 180;
 
-			const x=
-				50+
-				Math.cos(radians)*
-				radius;
+			const x =
+				50 +
+				Math.cos(radians) * radius;
 
-			const y=
-				50+
-				Math.sin(radians)*
-				radius;
+			const y =
+				50 +
+				Math.sin(radians) * radius;
 
-			if(
-				outcome.percentage>=3
-			){
+			if (outcome.percentage >= 3) {
 
-				const label=
-					document.createElement(
-						"div"
-					);
+				const label =
+					document.createElement("div");
 
-				label.className=
-					"pie-label";
+				label.className = "pie-label";
 
-				if(
-					outcome.percentage<6
-				){
-
-					label.classList.add(
-						"small"
-					);
+				if (outcome.percentage < 6) {
+					label.classList.add("small");
 				}
 
-				if(
-					outcome.percentage>=15
-				){
-
-					label.classList.add(
-						"large"
-					);
+				if (outcome.percentage >= 15) {
+					label.classList.add("large");
 				}
 
-				label.style.left=
-					`${x}%`;
+				label.style.left = `${x}%`;
+				label.style.top = `${y}%`;
 
-				label.style.top=
-					`${y}%`;
+				if (outcome.successes === 0) {
 
-				if(
-					outcome.successes===0
-				){
-
-					label.innerHTML=`
+					label.innerHTML = `
 						<span class="successes">FAILURE</span>
 						<span class="percentage">
 							${outcome.percentage.toFixed(1)}%
 						</span>
 					`;
 
-				}else if(
-					outcome.successes===
-					"other"
-				){
+				} else if (
+					outcome.successes === "other"
+				) {
 
-					label.innerHTML=`
+					label.innerHTML = `
 						<span class="successes">OTHER</span>
 						<span class="percentage">
 							${outcome.percentage.toFixed(1)}%
 						</span>
 					`;
 
-				}else{
+				} else {
 
-					label.innerHTML=`
+					label.innerHTML = `
 						<span class="successes">
 							${outcome.successes} SUCCESS
 						</span>
@@ -920,86 +668,61 @@ function buildPieChart(
 					`;
 				}
 
-				pieLabels.appendChild(
-					label
-				);
+				pieLabels.appendChild(label);
 			}
 
-			const legendItem=
-				document.createElement(
-					"div"
-				);
+			const legendItem =
+				document.createElement("div");
 
-			legendItem.className=
-				"legend-item";
+			legendItem.className = "legend-item";
 
-			const colorBox=
-				document.createElement(
-					"span"
-				);
+			const colorBox =
+				document.createElement("span");
 
-			colorBox.className=
-				"legend-color";
+			colorBox.className = "legend-color";
+			colorBox.style.backgroundColor = color;
 
-			colorBox.style.backgroundColor=
-				color;
-
-			const legendText=
-				document.createElement(
-					"span"
-				);
+			const legendText =
+				document.createElement("span");
 
 			let name;
 
-			if(
-				outcome.successes===0
-			){
+			if (outcome.successes === 0) {
 
-				name="FAILURE";
+				name = "FAILURE";
 
-			}else if(
-				outcome.successes===
-				"other"
-			){
+			} else if (
+				outcome.successes === "other"
+			) {
 
-				name="OTHER";
+				name = "OTHER";
 
-			}else{
+			} else {
 
-				name=
+				name =
 					`${outcome.successes} SUCCESS`;
 			}
 
-			legendText.textContent=
-				name+
-				" "+
-				outcome.percentage.toFixed(2)+
+			legendText.textContent =
+				name +
+				" " +
+				outcome.percentage.toFixed(2) +
 				"%";
 
-			legendItem.appendChild(
-				colorBox
-			);
+			legendItem.appendChild(colorBox);
+			legendItem.appendChild(legendText);
 
-			legendItem.appendChild(
-				legendText
-			);
+			chartLegend.appendChild(legendItem);
 
-			chartLegend.appendChild(
-				legendItem
-			);
-
-			currentPercentage=
-				end;
+			currentPercentage = end;
 		}
 	);
 
-	pieChart.style.background=
+	pieChart.style.background =
 		`conic-gradient(${gradientParts.join(",")})`;
 
-	rarityResult.textContent=
+	rarityResult.textContent =
 		selectedRarityName;
 
-	chartContainer.classList.remove(
-		"hidden"
-	);
+	chartContainer.classList.remove("hidden");
 }
